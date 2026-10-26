@@ -1,208 +1,180 @@
-from core.data_structures import ColaTurnos
+"""
+Combat Module.
+Implements the Combat system using TurnQueue (FIFO) and handling
+actions for heroes and procedural enemies.
+"""
+from core.data_structures import TurnQueue
 
 
-class Combate:
-    def __init__(self, heroes, enemigos, entrada=input):
+class Combat:
+    """Manages the turn-based combat loop between heroes and enemies."""
+    def __init__(self, heroes: list, enemies: list, input_func=input):
         self.heroes = heroes
-        self.enemigos = enemigos
-        self.cola_turnos = ColaTurnos()
-        self.ronda = 0
-        self.entrada = entrada       # se puede reemplazar para hacer pruebas
-        self.defensa_extra = {}      # entidad -> bonus de defensa por usar "Defender"
+        self.enemies = enemies
+        self.turn_queue = TurnQueue()
+        self.round_number = 0
+        self.input_func = input_func
+        self.extra_defense = {}
 
-    
-    def iniciar_combate(self):
-        """Devuelve True si ganan los héroes y False si pierden."""
-        print("\n==============================")
-        print("     ¡COMIENZA EL COMBATE!")
-        print("==============================")
+    def start_combat(self) -> bool:
+        """Runs the combat loop. Returns True if heroes win, False if defeated."""
+        print("\n==================================")
+        print("       COMBAT BEGINS!")
+        print("==================================")
 
-        resultado = "continua"
-        while resultado == "continua":
-            self.ejecutar_ronda()
-            resultado = self.verificar_fin_combate()
+        result = "continue"
+        while result == "continue":
+            self.execute_round()
+            result = self.check_combat_status()
 
-        self._quitar_defensas()
-        if resultado == "victoria":
-            self._dar_recompensas()
+        self._clear_all_defenses()
+
+        if result == "victory":
+            self._distribute_rewards()
             return True
-        print("\nEl escuadrón ha caído... La niebla desciende sobre los valles.")
+
+        print("\n💀 The expedition has fallen... The mutant fog consumes the mountain.")
         return False
 
-    def ejecutar_ronda(self):
-        """Una ronda: cada entidad viva actúa una vez, de más rápida a más lenta."""
-        self.ronda += 1
-        print(f"\n########## RONDA {self.ronda} ##########")
-        self._mostrar_estado()
+    def execute_round(self):
+        """Executes a round: alive entities act in order of speed."""
+        self.round_number += 1
+        print(f"\n########### ROUND {self.round_number} ###########")
+        self._display_status()
 
-        vivos = [e for e in self.heroes + self.enemigos if e.esta_vivo()]
-        self.cola_turnos.ordenar_por_velocidad(vivos)
+        active_units = [u for u in self.heroes + self.enemies if u.is_alive()]
+        self.turn_queue.sort_by_speed(active_units)
 
-        while not self.cola_turnos.esta_vacia():
-            if self.verificar_fin_combate() != "continua":
+        while not self.turn_queue.is_empty():
+            if self.check_combat_status() != "continue":
                 break
 
-            entidad = self.cola_turnos.desencolar()
-            if not entidad.esta_vivo():
+            entity = self.turn_queue.dequeue()
+            if not entity or not entity.is_alive():
                 continue
 
-            if entidad in self.heroes:
-                self.procesar_turno_jugador(entidad)
+            if entity in self.heroes:
+                self.process_hero_turn(entity)
             else:
-                self.procesar_turno_enemigo(entidad)
+                self.process_enemy_turn(entity)
 
-    def verificar_fin_combate(self):
-        """Devuelve "victoria", "derrota" o "continua"."""
-        if not self._vivos(self.enemigos):
-            return "victoria"
-        if not self._vivos(self.heroes):
-            return "derrota"
-        return "continua"
+    def check_combat_status(self) -> str:
+        """Determines if the encounter is still active, won, or lost."""
+        if not self._get_alive(self.enemies):
+            return "victory"
+        if not self._get_alive(self.heroes):
+            return "defeat"
+        return "continue"
 
-    
-    def procesar_turno_jugador(self, heroe):
-        self._quitar_defensa(heroe)
+    def process_hero_turn(self, hero):
+        """Allows the player to select actions for a hero."""
+        self._remove_defense_bonus(hero)
+
         while True:
-            print(f"\n--- Turno de {heroe.nombre} (HP {heroe.salud_actual}/{heroe.salud_max}) ---")
-            print("1. Atacar   2. Habilidad   3. Usar ítem   4. Defender")
-            opcion = self._pedir_numero("Elegí una acción: ", 1, 4)
+            print(f"\n--- Turn of {hero.name} (HP: {hero.current_hp}/{hero.max_hp}) ---")
+            print("1. Attack   2. Use Item (Backpack)   3. Defend")
+            choice = self._prompt_number("Choose action: ", 1, 3)
 
-            if opcion == 1:
-                objetivo = self._elegir_objetivo(self._vivos(self.enemigos))
-                danio = heroe.atacar(objetivo)
-                print(f"{heroe.nombre} ataca a {objetivo.nombre} y causa {danio} de daño.")
-                self._avisar_si_cae(objetivo)
+            if choice == 1:
+                target = self._select_target(self._get_alive(self.enemies))
+                damage = hero.attack_target(target)
+                print(f"⚔️ {hero.name} attacks {target.name} for {damage} damage.")
+                self._notify_if_slain(target)
                 return
 
-            if opcion == 2 and self._turno_habilidad(heroe):
+            elif choice == 2:
+                if hero.backpack.is_empty():
+                    print("🎒 The backpack is empty.")
+                    continue
+
+                top_item = hero.backpack.pop()
+                result_msg = top_item.apply(hero)
+                print(f"✨ {hero.name} used {top_item.name}: {result_msg}")
+                if not top_item.is_consumable:
+                    hero.backpack.push(top_item)
                 return
 
-            if opcion == 3 and self._turno_item(heroe):
+            elif choice == 3:
+                bonus = max(2, hero.defense // 2)
+                hero.defense += bonus
+                self.extra_defense[hero] = bonus
+                print(f"🛡️ {hero.name} takes a defensive stance (+{bonus} DEF until next turn).")
                 return
 
-            if opcion == 4:
-                bonus = max(1, heroe.defensa // 2)
-                heroe.defensa += bonus
-                self.defensa_extra[heroe] = bonus
-                print(f"{heroe.nombre} se pone en guardia: +{bonus} de defensa hasta su próximo turno.")
-                return
+    def process_enemy_turn(self, enemy):
+        """Processes the AI attack on a living hero."""
+        self._remove_defense_bonus(enemy)
+        target, damage = enemy.auto_attack(self.heroes)
+        if target:
+            print(f"💥 {enemy.name} strikes {target.name} dealing {damage} damage.")
+            self._notify_if_slain(target)
 
-    def procesar_turno_enemigo(self, enemigo):
-        """El enemigo ataca al héroe que provoca; si no hay, al de menor vida."""
-        self._quitar_defensa(enemigo)
-        vivos = self._vivos(self.heroes)
-        provocadores = [h for h in vivos if getattr(h, "provocando", False)]
-        if provocadores:
-            objetivo = provocadores[0]
-        else:
-            objetivo = min(vivos, key=lambda h: h.salud_actual)
+    def _distribute_rewards(self):
+        """Grants experience points and drops loot for surviving heroes."""
+        print("\n🏆 *** VICTORY! ***")
+        survivors = self._get_alive(self.heroes)
+        total_xp = sum(e.xp_reward for e in self.enemies)
+        print(f"All surviving heroes earn {total_xp} XP.")
 
-        danio = enemigo.atacar(objetivo)
-        print(f"\n{enemigo.nombre} ataca a {objetivo.nombre} y causa {danio} de daño.")
-        self._avisar_si_cae(objetivo)
+        for hero in survivors:
+            hero.gain_xp(total_xp)
 
-    
-    def _turno_habilidad(self, heroe):
-        habilidades = getattr(heroe, "habilidades", [])
-        if not habilidades:
-            print("Todavía no tenés habilidades.")
-            return False
+        for enemy in self.enemies:
+            item_drop = enemy.drop_loot()
+            if item_drop and survivors:
+                receiver = survivors[0]
+                receiver.backpack.push(item_drop)
+                print(f"🎁 {receiver.name} retrieved: {item_drop.name} (Added to backpack).")
 
-        print("Habilidades (0 para volver):")
-        for i, h in enumerate(habilidades, start=1):
-            print(f"{i}. {h.nombre} (energía: {h.costo_energia})")
-        eleccion = self._pedir_numero("Elegí una habilidad: ", 0, len(habilidades))
-        if eleccion == 0:
-            return False
-
-        objetivo = self._elegir_objetivo(self._vivos(self.enemigos) + self._vivos(self.heroes),
-                                         marcar_aliados=True)
-        if heroe.usar_habilidad(eleccion - 1, objetivo):
-            self._avisar_si_cae(objetivo)
-            return True
-        print("No pudiste usar la habilidad (¿te falta energía?).")
-        return False
-
-    def _turno_item(self, heroe):
-        inventario = getattr(heroe, "inventario", None)
-        if inventario is None or inventario.esta_vacia():
-            print("No tenés ítems.")
-            return False
-
-        print("Inventario (el primero es el tope de la pila):")
-        inventario.mostrar_inventario()
-        cantidad = len(inventario.elementos)
-        eleccion = self._pedir_numero("Número de ítem (0 para volver): ", 0, cantidad)
-        if eleccion == 0:
-            return False
-
-        objetivo = self._elegir_objetivo(self._vivos(self.heroes), texto="¿Sobre quién lo usás?")
-        if heroe.usar_item(eleccion - 1, objetivo):
-            return True
-        print("No pudiste usar ese ítem.")
-        return False
-
-  
-    def _dar_recompensas(self):
-        print("\n*** ¡VICTORIA! ***")
-        sobrevivientes = self._vivos(self.heroes)
-
-        exp_total = sum(getattr(e, "exp_otorgada", 0) for e in self.enemigos)
-        print(f"Cada superviviente gana {exp_total} de experiencia.")
-        for heroe in sobrevivientes:
-            if hasattr(heroe, "ganar_experiencia"):
-                heroe.ganar_experiencia(exp_total)
-
-        for i, enemigo in enumerate(self.enemigos):
-            if hasattr(enemigo, "soltar_loot"):
-                item = enemigo.soltar_loot()
-                if item is not None:
-                    receptor = sobrevivientes[i % len(sobrevivientes)]
-                    receptor.inventario.push(item)
-                    print(f"{receptor.nombre} recoge: {item}.")
-
-    
     @staticmethod
-    def _vivos(entidades):
-        return [e for e in entidades if e.esta_vivo()]
+    def _get_alive(entity_list: list) -> list:
+        return [e for e in entity_list if e.is_alive()]
 
-    def _avisar_si_cae(self, objetivo):
-        if not objetivo.esta_vivo():
-            print(f"  >> {objetivo.nombre} ha caído.")
+    def _notify_if_slain(self, target):
+        if not target.is_alive():
+            print(f"💀 >> {target.name} has fallen!")
 
-    def _quitar_defensa(self, entidad):
-        entidad.defensa -= self.defensa_extra.pop(entidad, 0)
+    def _remove_defense_bonus(self, entity):
+        bonus = self.extra_defense.pop(entity, 0)
+        if bonus > 0:
+            entity.defense -= bonus
 
-    def _quitar_defensas(self):
-        for entidad in list(self.defensa_extra):
-            self._quitar_defensa(entidad)
+    def _clear_all_defenses(self):
+        for entity, bonus in list(self.extra_defense.items()):
+            entity.defense -= bonus
+        self.extra_defense.clear()
 
-    def _mostrar_estado(self):
-        print("\nHÉROES")
+    def _display_status(self):
+        print("\nHEROES:")
         for h in self.heroes:
-            print(f"  {self._linea(h)}")
-        print("ENEMIGOS")
-        for e in self.enemigos:
-            print(f"  {self._linea(e)}")
+            print(f"  {self._health_bar(h)}")
+        print("ENEMIES:")
+        for e in self.enemies:
+            print(f"  {self._health_bar(e)}")
 
     @staticmethod
-    def _linea(entidad):
-        llenos = int(10 * entidad.salud_actual / entidad.salud_max)
-        barra = "█" * llenos + "░" * (10 - llenos)
-        return f"{entidad.nombre:<28} {barra} {entidad.salud_actual}/{entidad.salud_max}"
+    def _health_bar(entity) -> str:
+        ratio = max(0.0, min(1.0, entity.current_hp / entity.max_hp))
+        filled = int(10 * ratio)
+        empty = 10 - filled
+        bar = "█" * filled + "░" * empty
+        return f"{entity.name:<25} [{bar}] {entity.current_hp}/{entity.max_hp} HP"
 
-    def _pedir_numero(self, texto, minimo, maximo):
+    def _prompt_number(self, prompt: str, min_val: int, max_val: int) -> int:
         while True:
-            respuesta = self.entrada(texto).strip()
-            if respuesta.isdigit() and minimo <= int(respuesta) <= maximo:
-                return int(respuesta)
-            print(f"Ingresá un número entre {minimo} y {maximo}.")
+            raw = self.input_func(prompt).strip()
+            if raw.isdigit():
+                val = int(raw)
+                if min_val <= val <= max_val:
+                    return val
+            print(f"Please enter a number between {min_val} and {max_val}.")
 
-    def _elegir_objetivo(self, lista, texto="Elegí el objetivo:", marcar_aliados=False):
-        if len(lista) == 1:
-            return lista[0]
-        print(texto)
-        for i, entidad in enumerate(lista, start=1):
-            marca = " (aliado)" if marcar_aliados and entidad in self.heroes else ""
-            print(f"{i}. {entidad.nombre} ({entidad.salud_actual}/{entidad.salud_max}){marca}")
-        return lista[self._pedir_numero("> ", 1, len(lista)) - 1]
+    def _select_target(self, targets: list):
+        if len(targets) == 1:
+            return targets[0]
+        print("Select target:")
+        for idx, target in enumerate(targets, start=1):
+            print(f"{idx}. {target.name} ({target.current_hp}/{target.max_hp} HP)")
+        choice = self._prompt_number("> ", 1, len(targets))
+        return targets[choice - 1]
+
