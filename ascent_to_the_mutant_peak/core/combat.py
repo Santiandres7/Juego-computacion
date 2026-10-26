@@ -19,7 +19,7 @@ class Combat:
     def start_combat(self) -> bool:
         """Runs the combat loop. Returns True if heroes win, False if defeated."""
         print("\n==================================")
-        print("       COMBAT BEGINS!")
+        print("       COMIENZA EL COMBATE!")
         print("==================================")
 
         result = "continue"
@@ -33,13 +33,13 @@ class Combat:
             self._distribute_rewards()
             return True
 
-        print("\n💀 The expedition has fallen... The mutant fog consumes the mountain.")
+        print("\n💀 La expedición ha fallado... La niebla mutante consume la montaña.")
         return False
 
     def execute_round(self):
         """Executes a round: alive entities act in order of speed."""
         self.round_number += 1
-        print(f"\n########### ROUND {self.round_number} ###########")
+        print(f"\n########### RONDA {self.round_number} ###########")
         self._display_status()
 
         active_units = [u for u in self.heroes + self.enemies if u.is_alive()]
@@ -71,20 +71,20 @@ class Combat:
         self._remove_defense_bonus(hero)
 
         while True:
-            print(f"\n--- Turn of {hero.name} (HP: {hero.current_hp}/{hero.max_hp}) ---")
-            print("1. Attack   2. Use Item (Backpack)   3. Defend")
+            print(f"\n--- Giro of {hero.name} (HP: {hero.current_hp}/{hero.max_hp}) ---")
+            print("1. Ataque   2. Usar Item (Mochila)   3. Defender")
             choice = self._prompt_number("Choose action: ", 1, 3)
 
             if choice == 1:
                 target = self._select_target(self._get_alive(self.enemies))
                 damage = hero.attack_target(target)
-                print(f"⚔️ {hero.name} attacks {target.name} for {damage} damage.")
+                print(f"⚔️ {hero.name} ataques {target.name} por {damage} daño.")
                 self._notify_if_slain(target)
                 return
 
             elif choice == 2:
                 if hero.backpack.is_empty():
-                    print("🎒 The backpack is empty.")
+                    print("🎒 La mochila está vacía.")
                     continue
 
                 top_item = hero.backpack.pop()
@@ -98,7 +98,7 @@ class Combat:
                 bonus = max(2, hero.defense // 2)
                 hero.defense += bonus
                 self.extra_defense[hero] = bonus
-                print(f"🛡️ {hero.name} takes a defensive stance (+{bonus} DEF until next turn).")
+                print(f"🛡️ {hero.name} toma una postura defensiva (+{bonus} DEF hasta el último turno).")
                 return
 
     def process_enemy_turn(self, enemy):
@@ -106,15 +106,15 @@ class Combat:
         self._remove_defense_bonus(enemy)
         target, damage = enemy.auto_attack(self.heroes)
         if target:
-            print(f"💥 {enemy.name} strikes {target.name} dealing {damage} damage.")
+            print(f"💥 {enemy.name} golpea a {target.name} causando {damage} daño.")
             self._notify_if_slain(target)
 
     def _distribute_rewards(self):
         """Grants experience points and drops loot for surviving heroes."""
-        print("\n🏆 *** VICTORY! ***")
+        print("\n🏆 *** VICTORIA! ***")
         survivors = self._get_alive(self.heroes)
         total_xp = sum(e.xp_reward for e in self.enemies)
-        print(f"All surviving heroes earn {total_xp} XP.")
+        print(f"Todos los héroes sobrevivientes ganan {total_xp} XP.")
 
         for hero in survivors:
             hero.gain_xp(total_xp)
@@ -124,7 +124,7 @@ class Combat:
             if item_drop and survivors:
                 receiver = survivors[0]
                 receiver.backpack.push(item_drop)
-                print(f"🎁 {receiver.name} retrieved: {item_drop.name} (Added to backpack).")
+                print(f"🎁 {receiver.name} ha obtenido: {item_drop.name} (Añadido a la mochila).")
 
     @staticmethod
     def _get_alive(entity_list: list) -> list:
@@ -132,7 +132,7 @@ class Combat:
 
     def _notify_if_slain(self, target):
         if not target.is_alive():
-            print(f"💀 >> {target.name} has fallen!")
+            print(f"💀 >> {target.name} ha caído!")
 
     def _remove_defense_bonus(self, entity):
         bonus = self.extra_defense.pop(entity, 0)
@@ -145,10 +145,10 @@ class Combat:
         self.extra_defense.clear()
 
     def _display_status(self):
-        print("\nHEROES:")
+        print("\nHÉROES:")
         for h in self.heroes:
             print(f"  {self._health_bar(h)}")
-        print("ENEMIES:")
+        print("ENEMIGOS:")
         for e in self.enemies:
             print(f"  {self._health_bar(e)}")
 
@@ -167,12 +167,12 @@ class Combat:
                 val = int(raw)
                 if min_val <= val <= max_val:
                     return val
-            print(f"Please enter a number between {min_val} and {max_val}.")
+            print(f"Por favor, ingrese un número entre {min_val} y {max_val}.")
 
     def _select_target(self, targets: list):
         if len(targets) == 1:
             return targets[0]
-        print("Select target:")
+        print("Seleccionar objetivo:")
         for idx, target in enumerate(targets, start=1):
             print(f"{idx}. {target.name} ({target.current_hp}/{target.max_hp} HP)")
         choice = self._prompt_number("> ", 1, len(targets))
