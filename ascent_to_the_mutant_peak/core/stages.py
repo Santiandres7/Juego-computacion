@@ -4,7 +4,7 @@ Models the altitude zones, environmental riddles, and linked progression of Muta
 """
 import random
 from core.data_structures import StageLinkedList
-from core.entities import generate_procedural_enemy
+from core.entities import generate_procedural_enemy, generate_boss
 from core.combat import Combat
 
 
@@ -15,36 +15,46 @@ class Stage:
         self.name = name
         self.altitude = altitude
         self.lore = lore
-        self.riddle_data = riddle_data  # {'question': str, 'options': list, 'correct': int}
+        self.riddle_data = riddle_data
 
     def run_stage_event(self, heroes: list, input_func=input) -> bool:
-        """Executes the stage lore, riddle challenge, and the mutant ambush."""
+        """Executes the stage lore, riddle challenge, the mutant ambush and the stage boss."""
         print(f"\n{'='*55}")
         print(f"📍 ENTERING STAGE {self.number}: {self.name.upper()} ({self.altitude})")
         print(f"{'='*55}")
         print(f"📖 Lore: {self.lore}\n")
 
-        # Acertijo / Toma de decisión táctica
         passed_riddle = self._ask_riddle(input_func)
         if passed_riddle:
             print("\n💡 Correct assessment! The squad traverses safely and secures high ground.")
+            reward_xp = self.riddle_data.get("reward_xp", 0)
+            if reward_xp > 0:
+                print(f"🎓 The squad learns from the challenge (+{reward_xp} XP each).")
+                for hero in heroes:
+                    if hero.is_alive():
+                        hero.gain_xp(reward_xp)
         else:
             print("\n⚠️ Dangerous mistake! Exposure to mutagenic radiation damages the squad.")
             for hero in heroes:
                 if hero.is_alive():
-                    damage_taken = hero.take_damage(6)
+                    damage_taken = hero.take_damage(8, ignore_defense=True)
                     print(f"   - {hero.name} suffers {damage_taken} environmental damage.")
 
-        # Generación de mutantes adaptados a la altitud actual
         enemy_count = random.randint(1, 2)
         enemies = [generate_procedural_enemy(self.number) for _ in range(enemy_count)]
         print(f"\n🚨 AMBUSH! {len(enemies)} mutant threats emerge from the fog:")
         for enemy in enemies:
             print(f"   - {enemy.name} (HP: {enemy.max_hp}, ATK: {enemy.attack}, DEF: {enemy.defense})")
 
-        # Inicia combate usando la cola FIFO
         combat_encounter = Combat(heroes, enemies, input_func=input_func)
-        return combat_encounter.start_combat()
+        if not combat_encounter.start_combat():
+            return False
+
+        boss = generate_boss(self.number)
+        print(f"\n👹 STAGE BOSS: {boss.name} blocks the path!")
+        print(f"   - HP: {boss.max_hp}, ATK: {boss.attack}, DEF: {boss.defense}")
+        boss_encounter = Combat(heroes, [boss], input_func=input_func)
+        return boss_encounter.start_combat()
 
     def _ask_riddle(self, input_func) -> bool:
         """Prompts the environmental choice or tactical puzzle."""
@@ -79,7 +89,8 @@ def build_mountain_ascent() -> StageLinkedList:
                 "Scout the banks for petrified tree trunks to construct a temporary bridge.",
                 "Wait for nightfall expecting the acidic current to freeze."
             ],
-            "correct": 2
+            "correct": 2,
+            "reward_xp": 40
         }
     )
 
@@ -95,7 +106,8 @@ def build_mountain_ascent() -> StageLinkedList:
                 "Anchor inside a leeward crevasse and apply thermal heat pads to intake valves.",
                 "Strip off insulated armor to decrease ascent weight and move faster."
             ],
-            "correct": 2
+            "correct": 2,
+            "reward_xp": 60
         }
     )
 
@@ -111,7 +123,8 @@ def build_mountain_ascent() -> StageLinkedList:
                 "Zero oscillation (absolute vacuum seal).",
                 "High harmonic resonance attuned to mutagenic crystal vibration frequencies."
             ],
-            "correct": 3
+            "correct": 3,
+            "reward_xp": 80
         }
     )
 
@@ -120,4 +133,3 @@ def build_mountain_ascent() -> StageLinkedList:
     mountain.append(stage_3)
 
     return mountain
-

@@ -5,6 +5,8 @@ actions for heroes and procedural enemies.
 """
 from core.data_structures import TurnQueue
 
+DEFEND_BONUS = 50
+
 
 class Combat:
     """Manages the turn-based combat loop between heroes and enemies."""
@@ -14,7 +16,6 @@ class Combat:
         self.turn_queue = TurnQueue()
         self.round_number = 0
         self.input_func = input_func
-        self.extra_defense = {}
 
     def start_combat(self) -> bool:
         """Runs the combat loop. Returns True if heroes win, False if defeated."""
@@ -27,13 +28,12 @@ class Combat:
             self.execute_round()
             result = self.check_combat_status()
 
-        self._clear_all_defenses()
+        self._clear_all_statuses()
 
         if result == "victory":
             self._distribute_rewards()
             return True
 
-        print("\n💀 La expedición ha fallado... La niebla mutante consume la montaña.")
         return False
 
     def execute_round(self):
@@ -68,46 +68,89 @@ class Combat:
 
     def process_hero_turn(self, hero):
         """Allows the player to select actions for a hero."""
-        self._remove_defense_bonus(hero)
+        messages, can_act = hero.start_turn()
+        self._print_all(messages)
+        if not can_act:
+            return
 
         while True:
-            print(f"\n--- Giro of {hero.name} (HP: {hero.current_hp}/{hero.max_hp}) ---")
-            print("1. Ataque   2. Usar Item (Mochila)   3. Defender")
-            choice = self._prompt_number("Choose action: ", 1, 3)
+            print(f"\n--- Turno de {hero.name} (HP: {hero.current_hp}/{hero.max_hp} | "
+                f"Energía: {hero.current_energy}/{hero.max_energy}) ---")
+            print("1. Ataque (+energía)   2. Habilidad   3. Usar Item (Mochila)   4. Defender")
+            choice = self._prompt_number("Elige una acción: ", 1, 4)
 
             if choice == 1:
                 target = self._select_target(self._get_alive(self.enemies))
                 damage = hero.attack_target(target)
-                print(f"⚔️ {hero.name} ataques {target.name} por {damage} daño.")
+                crit_tag = " ¡CRÍTICO!" if hero.last_attack_was_crit else ""
+                print(f"⚔️ {hero.name} ataca a {target.name} por {damage} daño.{crit_tag}")
                 self._notify_if_slain(target)
                 return
 
             elif choice == 2:
-                if hero.backpack.is_empty():
-                    print("🎒 La mochila está vacía.")
-                    continue
-
-                top_item = hero.backpack.pop()
-                result_msg = top_item.apply(hero)
-                print(f"✨ {hero.name} used {top_item.name}: {result_msg}")
-                if not top_item.is_consumable:
-                    hero.backpack.push(top_item)
-                return
+                if self._hero_use_skill(hero):
+                    return
+                continue
 
             elif choice == 3:
-                bonus = max(2, hero.defense // 2)
-                hero.defense += bonus
-                self.extra_defense[hero] = bonus
-                print(f"🛡️ {hero.name} toma una postura defensiva (+{bonus} DEF hasta el último turno).")
+                result = hero.use_backpack_item()
+                if result is None:
+                    print("🎒 La mochila está vacía.")
+                    continue
+                item, result_msg = result
+                print(f"✨ {hero.name} usó {item.name}: {result_msg}")
+                if not item.is_consumable:
+                    print(f"🔧 {item.name} queda equipado de forma permanente.")
                 return
 
-    def process_enemy_turn(self, enemy):
-        """Processes the AI attack on a living hero."""
-        self._remove_defense_bonus(enemy)
-        target, damage = enemy.auto_attack(self.heroes)
+            elif choice == 4:
+                hero.add_status("guard", 1, DEFEND_BONUS)
+                print(f"🛡️ {hero.name} toma una postura defensiva (+{DEFEND_BONUS} DEF hasta su próximo turno).")
+                return
+
+    def _hero_use_skill(self, hero) -> bool:
+        available = [s for s in hero.skills if s.unlock_level <= hero.level and not s.is_passive]
+        if not available:
+            print("No tienes habilidades desbloqueadas.")
+            return False
+
+        print("\nHabilidades:")
+        for idx, skill in enumerate(available, start=1):
+            print(f"{idx}. {skill.name} (Energía: {skill.energy_cost}) - {skill.description}")
+        print("0. Volver")
+        choice = self._prompt_number("> ", 0, len(available))
+        if choice == 0:
+            return False
+
+        skill = available[choice - 1]
+        if hero.current_energy < skill.energy_cost:
+            print("⚡ No tienes suficiente energía.")
+            return False
+
+        target = None
+        if skill.target_type == "enemy":
+            target = self._select_target(self._get_alive(self.enemies))
+
+        hero.spend_energy(skill.energy_cost)
+        self._print_all(skill.apply(hero, target, self.heroes))
         if target:
-            print(f"💥 {enemy.name} golpea a {target.name} causando {damage} daño.")
             self._notify_if_slain(target)
+        return True
+
+    def process_enemy_turn(self, enemy):
+        """Processes the AI action of an enemy (normal attack or boss special)."""
+        messages, can_act = enemy.start_turn()
+        self._print_all(messages)
+        if not enemy.is_alive():
+            print(f"💀 >> {enemy.name} ha caído!")
+            return
+        if not can_act:
+            return
+
+        alive_before = self._get_alive(self.heroes)
+        self._print_all(enemy.take_turn(self.heroes))
+        for hero in alive_before:
+            self._notify_if_slain(hero)
 
     def _distribute_rewards(self):
         """Grants experience points and drops loot for surviving heroes."""
@@ -134,23 +177,29 @@ class Combat:
         if not target.is_alive():
             print(f"💀 >> {target.name} ha caído!")
 
-    def _remove_defense_bonus(self, entity):
-        bonus = self.extra_defense.pop(entity, 0)
-        if bonus > 0:
-            entity.defense -= bonus
+    def _clear_all_statuses(self):
+        for entity in self.heroes + self.enemies:
+            entity.clear_statuses()
 
-    def _clear_all_defenses(self):
-        for entity, bonus in list(self.extra_defense.items()):
-            entity.defense -= bonus
-        self.extra_defense.clear()
+    @staticmethod
+    def _print_all(messages: list):
+        for message in messages:
+            print(message)
+
+    @staticmethod
+    def _status_tags(entity) -> str:
+        names = {"stun": "Inmovilizado", "dot": "Ácido", "guard": "Defendiendo",
+                "defense_up": "DEF+", "defense_down": "DEF-", "taunt": "Provocación"}
+        tags = [names[s] for s in entity.statuses if s in names]
+        return f" [{', '.join(tags)}]" if tags else ""
 
     def _display_status(self):
         print("\nHÉROES:")
         for h in self.heroes:
-            print(f"  {self._health_bar(h)}")
+            print(f"  {self._health_bar(h)}  ⚡{h.current_energy}/{h.max_energy}{self._status_tags(h)}")
         print("ENEMIGOS:")
         for e in self.enemies:
-            print(f"  {self._health_bar(e)}")
+            print(f"  {self._health_bar(e)}{self._status_tags(e)}")
 
     @staticmethod
     def _health_bar(entity) -> str:
@@ -177,4 +226,3 @@ class Combat:
             print(f"{idx}. {target.name} ({target.current_hp}/{target.max_hp} HP)")
         choice = self._prompt_number("> ", 1, len(targets))
         return targets[choice - 1]
-

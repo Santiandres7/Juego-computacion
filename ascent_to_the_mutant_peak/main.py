@@ -1,5 +1,4 @@
-from core import Hero
-from core.stages import build_mountain_ascent
+from core import create_squad, build_mountain_ascent
 
 STORY_INTRO = """
 En la cordillera septentrional se alza el Monte Colmillo. En su cima, la estación
@@ -11,17 +10,8 @@ de la región desaparecerá. Tres supervivientes son la última esperanza.
 """
 
 
-def create_squad() -> list:
-    """Crea el escuadrón con las estadísticas base del documento de diseño."""
-    return [
-        Hero("Dra. Camila Brooks", "Chemist / Support", max_hp=80, attack=12, defense=8, speed=14),
-        Hero("Sgt. Julian Gunner", "Defensive Tank", max_hp=150, attack=15, defense=20, speed=8),
-        Hero("Kael", "Hunter / Assassin", max_hp=95, attack=25, defense=10, speed=18),
-    ]
-
 
 def show_main_menu() -> int:
-    """Muestra el menú principal y devuelve la opción elegida (1 o 2)."""
     print("\n==================================")
     print("   ASCENSO AL PICO MUTANTE")
     print("==================================")
@@ -38,10 +28,23 @@ def show_squad(squad: list) -> None:
     print("\nTu escuadrón:")
     for hero in squad:
         print(f"  - {hero.name} ({hero.role}) | HP {hero.max_hp} | ATK {hero.attack} "
-            f"| DEF {hero.defense} | VEL {hero.speed}")
+            f"| DEF {hero.defense} | VEL {hero.speed} | ENERGÍA {hero.max_energy}")
+        for skill in hero.skills:
+            print(f"      · {skill.name} (nivel {skill.unlock_level}): {skill.description}")
+
+
+def rest_squad(squad: list) -> None:
+    print("\n🏕️ El escuadrón acampa y recupera fuerzas...")
+    for hero in squad:
+        was_dead = not hero.is_alive()
+        hero.rest()
+        if was_dead:
+            print(f"   - {hero.name} vuelve a levantarse con {hero.current_hp} HP.")
+        else:
+            print(f"   - {hero.name} recupera fuerzas ({hero.current_hp}/{hero.max_hp} HP).")
+
 
 def play_game() -> bool:
-    """Recorre los tramos en orden. Devuelve True si el escuadrón llega a la cumbre."""
     print(STORY_INTRO)
     squad = create_squad()
     show_squad(squad)
@@ -55,11 +58,13 @@ def play_game() -> bool:
 
         if not survived:
             return False
+
         print(f"\n✅ Tramo {stage.number} superado: {stage.name}")
 
         if not mountain.advance():
             return True
 
+        rest_squad(squad)
         input("\nPresiona ENTER para continuar el ascenso...")
 
 
@@ -73,7 +78,8 @@ def main() -> None:
             if play_game():
                 print("\n🏔️ ¡El reactor fue purificado! La niebla se disipa y los valles se salvan.")
             else:
-                print("\n☠️ GAME OVER")
+                print("\n💀 La expedición ha fallado... La niebla mutante consume la montaña.")
+                print("☠️ GAME OVER")
 
             again = input("\n¿Volver al menú principal? (s/n): ").strip().lower()
             if again != "s":
