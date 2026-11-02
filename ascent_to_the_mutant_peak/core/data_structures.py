@@ -6,6 +6,8 @@ Implements:
 3. StageNode & StageLinkedList: Singly linked list for stage progression.
 """
 from collections import deque
+import json
+import os
 
 
 class InventoryStack:
@@ -134,4 +136,60 @@ class StageLinkedList:
         while runner is not None:
             print(runner.data)
             runner = runner.next
+
+
+# ---------------------------------------------------------
+# Persistencia: Guardado y Carga de Partida
+# ---------------------------------------------------------
+
+SAVE_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "saved_game.json")
+
+
+def save_game_state(mountain: StageLinkedList, squad: list) -> bool:
+    """Guarda el progreso de la montaña y del escuadrón en data/saved_game.json."""
+    try:
+        current_stage = mountain.get_current_stage()
+        stage_num = current_stage.number if current_stage and hasattr(current_stage, "number") else 1
+
+        data = {
+            "current_stage_number": stage_num,
+            "squad": []
+        }
+
+        for hero in squad:
+            # Extraemos los nombres de los ítems usando get_all() de InventoryStack
+            items_data = [item.name for item in hero.backpack.get_all()] if hasattr(hero, "backpack") else []
+            
+            hero_info = {
+                "name": hero.name,
+                "role": getattr(hero, "role", ""),
+                "current_hp": hero.current_hp,
+                "max_hp": hero.max_hp,
+                "attack": getattr(hero, "attack", 10),
+                "defense": getattr(hero, "defense", 5),
+                "speed": getattr(hero, "speed", 5),
+                "inventory": items_data
+            }
+            data["squad"].append(hero_info)
+
+        os.makedirs(os.path.dirname(SAVE_PATH), exist_ok=True)
+        with open(SAVE_PATH, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=4, ensure_ascii=False)
+
+        return True
+    except Exception as e:
+        print(f"Error al guardar la partida: {e}")
+        return False
+
+
+def load_game_state() -> dict | None:
+    """Lee el archivo data/saved_game.json si existe."""
+    if not os.path.exists(SAVE_PATH):
+        return None
+    try:
+        with open(SAVE_PATH, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception as e:
+        print(f"Error al cargar la partida: {e}")
+        return None
 

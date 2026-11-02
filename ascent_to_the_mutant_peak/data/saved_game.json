@@ -1,0 +1,38 @@
+{
+    "current_stage_number": 2,
+    "squad": [
+        {
+            "name": "Dra. Camila Brooks",
+            "role": "Chemist / Support",
+            "current_hp": 110,
+            "max_hp": 110,
+            "attack": 20,
+            "defense": 14,
+            "speed": 14,
+            "inventory": [
+                "Chemical Injector",
+                "Thermal Energy Ration"
+            ]
+        },
+        {
+            "name": "Sgt. Julian Gunner",
+            "role": "Defensive Tank",
+            "current_hp": 180,
+            "max_hp": 180,
+            "attack": 23,
+            "defense": 26,
+            "speed": 8,
+            "inventory": []
+        },
+        {
+            "name": "Kael",
+            "role": "Hunter / Assassin",
+            "current_hp": 125,
+            "max_hp": 125,
+            "attack": 33,
+            "defense": 16,
+            "speed": 18,
+            "inventory": []
+        }
+    ]
+}
