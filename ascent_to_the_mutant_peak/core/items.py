@@ -10,7 +10,7 @@ class Item:
         self.is_consumable = is_consumable
 
     def apply(self, target) -> str:
-        """Applies item effect to the target entity and returns a feedback message."""
+        """Aplica el efecto del objeto a la entidad objetivo y devuelve un mensaje de respuesta."""
         if self.stat_affected == "hp":
             target.heal(self.value)
             return f"{target.name} recovered {self.value} HP."
@@ -37,5 +37,5 @@ ITEM_CATALOG = [
 
 
 def get_random_loot():
-    """Returns a NEW copy of a random catalog item (so enemies don't share instances)."""
+    """Devuelve una NUEVA copia de un elemento aleatorio del catálogo (de modo que los enemigos no compartan instancias)."""
     return copy.copy(random.choice(ITEM_CATALOG))

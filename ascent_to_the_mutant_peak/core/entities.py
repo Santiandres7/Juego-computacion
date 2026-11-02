@@ -11,7 +11,7 @@ ENERGY_ON_ATTACK = 5
 
 
 class Entity(ABC):
-    """Abstract base class for all living creatures in the game."""
+    """Clase base abstracta para todas las criaturas vivas en el juego."""
     def __init__(self, name: str, max_hp: int, attack: int, defense: int, speed: int):
         self.name = name
         self.max_hp = max_hp
@@ -22,7 +22,7 @@ class Entity(ABC):
         self.statuses = {}
 
     def is_alive(self) -> bool:
-        """Returns True if current HP is greater than 0."""
+        """Devuelve True si los HP actuales son mayores que 0."""
         return self.current_hp > 0
 
     @property
@@ -40,7 +40,7 @@ class Entity(ABC):
         return real_damage
 
     def heal(self, amount: int):
-        """Restores HP without exceeding max HP."""
+        """Restaura los PS sin superar los PS máximos."""
         self.current_hp = min(self.max_hp, self.current_hp + amount)
 
     def add_status(self, name: str, turns: int, value: int = 0):
@@ -56,7 +56,7 @@ class Entity(ABC):
         self.statuses.clear()
 
     def tick_statuses(self) -> list:
-        """Applies damage over time and lowers every status duration by 1. Returns messages."""
+        """Inflige daño a lo largo del tiempo y reduce en 1 la duración de todos los estados. Devuelve mensajes."""
         messages = []
         if "dot" in self.statuses:
             damage = self.take_damage(self.get_status_value("dot"), ignore_defense=True)
@@ -68,7 +68,7 @@ class Entity(ABC):
         return messages
 
     def start_turn(self) -> tuple:
-        """Call at the start of this entity's turn. Returns (messages, can_act)."""
+        """Se invoca al comienzo del turno de esta entidad. Devuelve (mensajes, puede_actuar)."""
         stunned = self.has_status("stun")
         messages = self.tick_statuses()
         if stunned and self.is_alive():
@@ -77,12 +77,12 @@ class Entity(ABC):
 
     @abstractmethod
     def attack_target(self, target):
-        """Abstract method that must be implemented by subclasses."""
+        """Método abstracto que debe ser implementado por las subclases."""
         pass
 
 
 class Skill:
-    """A hero ability. target_type: 'enemy', 'allies' or 'self'."""
+    """Habilidad de un héroe. target_type: 'enemy', 'allies' o 'self'."""
     def __init__(self, name: str, energy_cost: int, power: int, effect: str,
                 target_type: str, unlock_level: int = 1, description: str = "",
                 is_passive: bool = False):
@@ -96,7 +96,7 @@ class Skill:
         self.is_passive = is_passive
 
     def apply(self, user, target, allies: list) -> list:
-        """Applies the skill and returns a list of messages to display."""
+        """Aplica la habilidad y devuelve una lista de mensajes para mostrar."""
         if self.effect == "heal_all":
             for ally in allies:
                 if ally.is_alive():
@@ -130,7 +130,7 @@ class Skill:
 
 
 class Hero(Entity):
-    """Protagonist character with level progression, energy, skills and a LIFO backpack."""
+    """Personaje protagonista con progresión de nivel, energía, habilidades y una mochila LIFO."""
     def __init__(self, name: str, role: str, max_hp: int, attack: int, defense: int, speed: int,
                 max_energy: int = 100, crit_chance: float = 0.05, skills: list = None):
         super().__init__(name, max_hp, attack, defense, speed)
@@ -147,7 +147,7 @@ class Hero(Entity):
         self.last_attack_was_crit = False
 
     def attack_target(self, target) -> int:
-        """Performs a direct attack against an enemy target."""
+        """Realiza un ataque directo contra un objetivo enemigo."""
         self.last_attack_was_crit = random.random() < self.crit_chance
         base_damage = self.attack * 2 if self.last_attack_was_crit else self.attack
         self.restore_energy(ENERGY_ON_ATTACK)
@@ -157,14 +157,14 @@ class Hero(Entity):
         self.current_energy = min(self.max_energy, self.current_energy + amount)
 
     def spend_energy(self, amount: int) -> bool:
-        """Spends energy. Returns False (and spends nothing) if there isn't enough."""
+        """Gasta energía. Devuelve False (y no gasta nada) si no hay suficiente."""
         if self.current_energy < amount:
             return False
         self.current_energy -= amount
         return True
 
     def use_backpack_item(self):
-        """Pops the top item and applies it. Returns (item, message) or None if empty."""
+        """Extrae el elemento superior y lo aplica. Devuelve (elemento, mensaje) o None si está vacío."""
         item = self.backpack.pop()
         if item is None:
             return None
@@ -174,14 +174,14 @@ class Hero(Entity):
         return item, message
 
     def gain_xp(self, points: int):
-        """Adds experience points and handles level ups."""
+        """Añade puntos de experiencia y maneja los ascensos de nivel."""
         self.xp += points
         print(f"✨ {self.name} gained {points} XP.")
         while self.xp >= self.xp_next_level:
             self.level_up()
 
     def level_up(self):
-        """Increases base stats and completely restores health."""
+        """Aumenta las estadísticas base y restaura la salud por completo."""
         self.xp -= self.xp_next_level
         self.level += 1
         self.xp_next_level = int(self.xp_next_level * 1.5)
@@ -191,7 +191,7 @@ class Hero(Entity):
         self.defense += 3
         self.max_energy += 10
         self.current_energy = self.max_energy
-        print(f"🆙 {self.name} reached Level {self.level}! Attributes increased.")
+        print(f"🆙 {self.name} ha alcanzado el nivel {self.level}! Los atributos han aumentado.")
         for skill in self.skills:
             if skill.unlock_level == self.level:
                 print(f"🔓 {self.name} desbloqueó: {skill.name}!")
@@ -205,7 +205,7 @@ class Hero(Entity):
 
 
 class Enemy(Entity):
-    """Mutant creatures and stage bosses."""
+    """Criaturas mutantes y jefes de nivel."""
     def __init__(self, name: str, max_hp: int, attack: int, defense: int, speed: int,
                 xp_reward: int, drop_chance: float = 0.60):
         super().__init__(name, max_hp, attack, defense, speed)
@@ -214,11 +214,11 @@ class Enemy(Entity):
         self.drop_chance = drop_chance
 
     def attack_target(self, target) -> int:
-        """Attacks a specific target."""
+        """Ataca a un objetivo específico."""
         return target.take_damage(self.attack)
 
     def drop_loot(self):
-        """Chance (drop_chance) to drop an item upon defeat."""
+        """Probabilidad (drop_chance) de que se obtenga un objeto al ser derrotado."""
         if random.random() < self.drop_chance:
             return self.loot
         return None
@@ -231,7 +231,7 @@ class Enemy(Entity):
         return random.choice(taunters if taunters else alive_heroes)
 
     def auto_attack(self, heroes: list) -> tuple:
-        """AI picks a living hero to attack (taunting heroes are prioritized)."""
+        """La IA elige a un héroe vivo al que atacar (se da prioridad a los héroes con provocación)."""
         target = self.pick_target(heroes)
         if target is None:
             return None, 0
@@ -239,7 +239,7 @@ class Enemy(Entity):
         return target, damage
 
     def take_turn(self, heroes: list) -> list:
-        """Performs this enemy's action and returns messages to display."""
+        """Realiza la acción de este enemigo y devuelve los mensajes para mostrar."""
         target, damage = self.auto_attack(heroes)
         if target is None:
             return []
@@ -304,7 +304,7 @@ class Boss(Enemy):
         return messages
 
 def generate_procedural_enemy(stage: int) -> Enemy:
-    """Procedurally scales mutant attributes depending on the current altitude/stage."""
+    """Ajusta de forma procedimental los atributos de los mutantes en función de la altitud o etapa actual."""
     names_by_stage = {
         1: ["Armored Mud Rat", "Thorny Mutant Spider"],
         2: ["Blind Frost Bat", "Glacial Scaled Wolf"],
@@ -326,7 +326,7 @@ def generate_procedural_enemy(stage: int) -> Enemy:
 
 
 def generate_boss(stage: int) -> Boss:
-    """Creates the boss of the given stage."""
+    """Crea el jefe de la etapa dada."""
     if stage == 1:
         return Boss("Spore Colossus", 300, 26, 12, 7, 120, special="poison_cloud")
     if stage == 2:
@@ -337,7 +337,7 @@ def generate_boss(stage: int) -> Boss:
     raise ValueError(f"Invalid boss stage {stage}. Valid stages: 1, 2, 3")
 
 def create_squad() -> list:
-    """Creates the three heroes with the base stats of the design document."""
+    """Crea los tres héroes con las estadísticas base del documento de diseño."""
     camila = Hero(
         "Dra. Camila Brooks", "Chemist / Support", 80, 12, 8, 14, max_energy=120,
         skills=[

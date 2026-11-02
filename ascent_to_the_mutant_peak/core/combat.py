@@ -9,7 +9,7 @@ DEFEND_BONUS = 50
 
 
 class Combat:
-    """Manages the turn-based combat loop between heroes and enemies."""
+    """Gestiona el ciclo de combate por turnos entre héroes y enemigos."""
     def __init__(self, heroes: list, enemies: list, input_func=input):
         self.heroes = heroes
         self.enemies = enemies
@@ -18,7 +18,7 @@ class Combat:
         self.input_func = input_func
 
     def start_combat(self) -> bool:
-        """Runs the combat loop. Returns True if heroes win, False if defeated."""
+        """Ejecuta el bucle de combate. Devuelve True si los héroes ganan, False si son derrotados."""
         print("\n==================================")
         print("       COMIENZA EL COMBATE!")
         print("==================================")
@@ -37,7 +37,7 @@ class Combat:
         return False
 
     def execute_round(self):
-        """Executes a round: alive entities act in order of speed."""
+        """Ejecuta una ronda: las entidades vivas actúan en orden de velocidad."""
         self.round_number += 1
         print(f"\n########### RONDA {self.round_number} ###########")
         self._display_status()
@@ -59,7 +59,7 @@ class Combat:
                 self.process_enemy_turn(entity)
 
     def check_combat_status(self) -> str:
-        """Determines if the encounter is still active, won, or lost."""
+        """Determina si el encuentro sigue activo, si se ha ganado o si se ha perdido."""
         if not self._get_alive(self.enemies):
             return "victory"
         if not self._get_alive(self.heroes):
@@ -67,7 +67,7 @@ class Combat:
         return "continue"
 
     def process_hero_turn(self, hero):
-        """Allows the player to select actions for a hero."""
+        """Permite al jugador seleccionar acciones para un héroe."""
         messages, can_act = hero.start_turn()
         self._print_all(messages)
         if not can_act:
@@ -138,7 +138,7 @@ class Combat:
         return True
 
     def process_enemy_turn(self, enemy):
-        """Processes the AI action of an enemy (normal attack or boss special)."""
+        """Procesa la acción de la IA de un enemigo (ataque normal o especial de jefe)."""
         messages, can_act = enemy.start_turn()
         self._print_all(messages)
         if not enemy.is_alive():
@@ -153,7 +153,7 @@ class Combat:
             self._notify_if_slain(hero)
 
     def _distribute_rewards(self):
-        """Grants experience points and drops loot for surviving heroes."""
+        """Otorga puntos de experiencia y objetos a los héroes que sobreviven."""
         print("\n🏆 *** VICTORIA! ***")
         survivors = self._get_alive(self.heroes)
         total_xp = sum(e.xp_reward for e in self.enemies)

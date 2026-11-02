@@ -9,72 +9,72 @@ from collections import deque
 
 
 class InventoryStack:
-    """LIFO Stack to manage hero inventory (last item in is the first available)."""
+    """Pila LIFO para gestionar el inventario del héroe (el último objeto añadido es el primero disponible)."""
     def __init__(self):
         self._items = []
 
     def push(self, item):
-        """Pushes an item onto the top of the stack."""
+        """Inserta un elemento en la parte superior de la pila."""
         self._items.append(item)
 
     def pop(self):
-        """Pops and returns the top item from the stack."""
+        """Saca y devuelve el elemento superior de la pila."""
         if self.is_empty():
             return None
         return self._items.pop()
 
     def peek(self):
-        """Inspects the top item without removing it."""
+        """Examina el elemento superior sin retirarlo."""
         if self.is_empty():
             return None
         return self._items[-1]
 
     def is_empty(self) -> bool:
-        """Returns True if the stack has no items."""
+        """Devuelve True si la pila no tiene elementos."""
         return len(self._items) == 0
 
     def show_inventory(self):
-        """Prints items from top to bottom."""
+        """Imprime los elementos desde la parte superior hasta la inferior."""
         if self.is_empty():
-            print("The inventory is empty.")
+            print("El inventario está vacío.")
             return
         for item in reversed(self._items):
             print(f"- {item.name}")
 
     def get_all(self) -> list:
-        """Returns all items in display order."""
+        """Devuelve todos los elementos en orden de visualización."""
         return list(reversed(self._items))
 
 
 class TurnQueue:
-    """FIFO Queue to organize the turn order in combat rounds."""
+    """Cola FIFO para organizar el orden de turno en las rondas de combate"""
     def __init__(self):
         self._queue = deque()
 
     def enqueue(self, entity):
-        """Appends an entity to the back of the queue."""
+        """Añade una entidad al final de la cola."""
         self._queue.append(entity)
 
     def dequeue(self):
-        """Removes and returns the entity at the front of the queue."""
+        """Elimina y devuelve la entidad al frente de la cola."""
         if self.is_empty():
             return None
         return self._queue.popleft()
 
     def peek(self):
-        """Inspects the next entity without dequeuing it."""
+        """Examina la próxima entidad sin eliminarla."""
         if self.is_empty():
             return None
         return self._queue[0]
 
     def is_empty(self) -> bool:
-        """Returns True if no entities remain in the current round."""
+        """Devuelve True si no quedan entidades en la ronda actual."""
         return len(self._queue) == 0
 
     def sort_by_speed(self, entities: list):
         """
-        Filters alive entities, sorts them by speed descending,
-        and loads them into the FIFO queue.
+        Filtra las entidades vivas, las ordena por velocidad en orden descendente,
+        y las carga en la cola FIFO.
         """
         self._queue.clear()
         alive_entities = [e for e in entities if e.is_alive()]
@@ -84,20 +84,20 @@ class TurnQueue:
 
 
 class StageNode:
-    """Node element for the linked list representing a single stage."""
+    """Elemento de nodo para la lista enlazada que representa una etapa individual."""
     def __init__(self, data):
         self.data = data
         self.next = None
 
 
 class StageLinkedList:
-    """Singly Linked List connecting mountain ascent stages in order."""
+    """Lista enlazada simple que conecta las etapas de la ascensión de la montaña en orden."""
     def __init__(self):
         self.head = None
         self.current = None
 
     def append(self, stage_data):
-        """Appends a new stage node at the end of the list."""
+        """Añade un nuevo nodo de etapa al final de la lista."""
         new_node = StageNode(stage_data)
         if self.is_empty():
             self.head = new_node
@@ -109,26 +109,26 @@ class StageLinkedList:
             runner.next = new_node
 
     def is_empty(self) -> bool:
-        """Checks if the stage list is empty."""
+        """Comprueba si la lista de etapas está vacía."""
         return self.head is None
 
     def get_current_stage(self):
-        """Returns the data of the current active stage."""
+        """Devuelve los datos de la etapa actual activa."""
         if self.is_empty() or self.current is None:
             return None
         return self.current.data
 
     def advance(self) -> bool:
-        """Moves to the next stage node. Returns False if already at the summit."""
+        """Avanza al siguiente nodo de etapa. Devuelve False si ya se encuentra en la cima."""
         if self.current is None or self.current.next is None:
             return False
         self.current = self.current.next
         return True
 
     def display_stages(self):
-        """Traverses and prints all stages from base to summit."""
+        """Recorre e imprime todas las etapas, desde la base hasta la cima."""
         if self.is_empty():
-            print("No stages registered.")
+            print("No hay etapas registradas.")
             return
         runner = self.head
         while runner is not None:
